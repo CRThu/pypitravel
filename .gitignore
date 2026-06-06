@@ -90,3 +90,7 @@ venv.bak/
 *.su
 *.idb
 *.pdb
+
+
+# 开发使用文件
+dev/

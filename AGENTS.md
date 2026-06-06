@@ -18,7 +18,66 @@
 5.  **数据响应**: 目标服务器返回 JSON 数据，后端原样透传回前端。
 6.  **可视化处理**: 前端接收到数据后，进行解析并在地图上绘制（计划中）。
 
----
+## 数据模型定义 (`dev/detail.json` 转换目标)
+
+为了方便前端开发与地图可视化，我们将 API 返回的原始数据转换为以下标准模型结构：
+
+```json
+{
+  "code": 0,                // 接口状态码
+  "success": true,          // 请求是否成功
+  "msg": "成功",            // 状态描述
+  "data": {
+    "user_profile": {       // 用户信息
+      "user_id": "...",
+      "nickname": "...",
+      "gender": 2,
+      "avatar": "..."
+    },
+    "journey": {            // 核心行程数据
+      "id": 0,              // 行程 ID
+      "name": "...",        // 行程标题
+      "days": 0,            // 总天数
+      "start_time": 0,      // 行程起始时间戳 (毫秒)
+      "time_description": "...", // 行程日期范围说明
+      "poi_count": 0,       // POI 总数
+      "bind_political_info": [ // 地理位置列表
+        {
+          "political_id": "...",
+          "name": "...",
+          "political_level": 3,
+          "location": { "latitude": "...", "longitude": "..." }
+        }
+      ],
+      "day_plans": [        // 每日计划数组 (按天组织)
+        {
+          "day_index": 1,
+          "day_plan_name": "...",
+          "remark": "...",
+          "events": [       // 具体事件数组
+            {
+              "id": 0,
+              "name": "...",
+              "event_type": 0,
+              "start_time": "HH:MM",
+              "end_time": "HH:MM",
+              "transport_info": { "transport_num": "...", "transport_start_time": 0 },
+              "start_poi_info": { 
+                "name": "...",
+                "location": { "latitude": 0, "longitude": 0 },
+                "coordinate_type": "...",
+                "address": "...",
+                "category": [{ "level1": "...", "level2": "..." }]
+              },
+              "end_poi_info": { ... }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+```
 
 ## 任务清单
 
