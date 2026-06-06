@@ -4,11 +4,16 @@
 <body>
     <h1>pypitravel API Test</h1>
     <input type="text" id="urlInput" placeholder="在此粘贴行程链接" style="width: 300px;">
+    <label>
+        <input type="checkbox" id="forceRefresh"> 强制重新获取
+    </label>
     <button id="btn">解析行程</button>
     <pre id="result"></pre>
     <script>
         document.getElementById('btn').onclick = async () => {
             const url = document.getElementById('urlInput').value;
+            const forceRefresh = document.getElementById('forceRefresh').checked;
+            
             // 改进后的正则：修复了斜杠转义问题，兼容 /detail/12345 和 ?journey_id=12345
             const match = url.match(/(?:detail\/|journey_id=)(\d+)/);
             const journeyId = match ? match[1] : url.trim();
@@ -18,7 +23,8 @@
                 return;
             }
 
-            const res = await fetch(`/api/journey?journey_id=${journeyId}`);
+            const fetchUrl = `/api/journey?journey_id=${journeyId}&force_refresh=${forceRefresh}`;
+            const res = await fetch(fetchUrl);
             const data = await res.json();
             document.getElementById('result').innerText = JSON.stringify(data, null, 2);
         };

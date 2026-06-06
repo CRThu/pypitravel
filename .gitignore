@@ -94,3 +94,6 @@ venv.bak/
 
 # 开发使用文件
 dev/
+
+# 缓存
+cache/
