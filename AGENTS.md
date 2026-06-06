@@ -8,14 +8,16 @@
 
 ### 数据交互流程
 
-1.  **用户输入**: 用户在前端页面粘贴行程链接（例如: `https://www.pitravel.cn/web/journey/detail/{journey_id}?lang=zh_cn&source=copyLink`）。
+1.  **用户输入**: 用户在前端页面粘贴行程链接（例如: `https://www.pitravel.cn/web/journey/detail/{journey_id}?lang=zh_cn&source=copyLink`），或通过下拉框选择已缓存的行程。
 2.  **前端解析**: 前端通过正则表达式提取 `journey_id`。
 3.  **请求转发**: 前端通过 `fetch` 请求本地后端接口：
-    *   **接口**: `GET /api/journey?journey_id={journey_id}`
-4.  **后端代理**: FastAPI 后端 (`src/pypitravel/cli.py`) 接收请求，调用 `httpx` 发起真正的 API 请求：
-    *   **目标地址**: `https://www.pitravel.cn/api/slytherin/v1/web/journey/detail?journey_id={journey_id}`
-    *   **请求头**: 伪装 `User-Agent` 与 `Referer` 以绕过服务器安全检查。
-5.  **数据响应**: 目标服务器返回 JSON 数据，后端原样透传回前端。
+    *   `GET /api/journey?journey_id={journey_id}` (获取原始数据，支持缓存)
+    *   `GET /api/journey/summary?journey_id={journey_id}` (获取精简摘要)
+    *   `GET /api/cached-journeys` (获取已缓存行程列表)
+4.  **后端代理**: FastAPI 后端 (`src/pypitravel/cli.py`) 接收请求：
+    *   **缓存逻辑**: 优先读取本地 `src/pypitravel/data/cache/` 目录。
+    *   **远程代理**: 若缓存不存在或请求强制刷新，调用 `httpx` 发起 API 请求，伪装 `User-Agent` 与 `Referer`。
+5.  **数据响应**: 后端返回 JSON 数据。
 6.  **可视化处理**: 前端接收到数据后，进行解析并在地图上绘制（计划中）。
 
 ## 数据模型定义 (`dev/detail.json` 转换目标)
@@ -58,6 +60,7 @@
             {
               "id": 0,
               "name": "...",
+              "note": "...",
               "event_type": 0,
               "start_time": "HH:MM",
               "end_time": "HH:MM",
@@ -85,10 +88,13 @@
 *   [x] 建立标准包结构 `src/pypitravel/`。
 *   [x] 配置 `pyproject.toml` 支持 CLI 脚本入口 `pypitravel`。
 *   [x] 编写 `cli.py`，实现 API 代理及静态文件映射。
+*   [x] 实现本地缓存管理 (`data/cache/`) 与路径模块化 (`paths.py`)。
+*   [x] 实现业务解析模块 (`journey_parser.py`)。
 *   [ ] 优化数据处理逻辑（引入 CSV 导出、圆周旅迹分析）。
 
 ### 2. 前端 (交互式地图)
 *   [x] 建立基础静态页面架构。
+*   [x] 实现缓存列表选择与双模式请求。
 *   [ ] 集成 Leaflet.js，完成路径可视化开发。
 *   [ ] 优化前端构建流程（整合 `Bun` 构建资源）。
 

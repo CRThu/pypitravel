@@ -6,6 +6,9 @@ import uvicorn
 import os
 import sys
 import json
+# 导入配置和解析器
+from .paths import CACHE_DIR, STATIC_DIR
+from .journey_parser import get_summary
 
 app = FastAPI()
 
@@ -17,19 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 确定静态文件路径 (Nuitka 打包环境 + 开发环境)
-if getattr(sys, 'frozen', False):
-    # Nuitka 打包后，可执行文件所在目录
-    base_path = os.path.dirname(sys.executable)
-else:
-    # 开发环境 (src/pypitravel/cli.py 所在目录)
-    base_path = os.path.dirname(os.path.abspath(__file__))
-
-static_path = os.path.join(base_path, "static")
-
-# 缓存目录
-CACHE_DIR = os.path.join(base_path, "data", "cache")
-os.makedirs(CACHE_DIR, exist_ok=True)
+# 确定静态文件路径和缓存目录在 paths.py 中定义
 
 def get_cache_path(journey_id: str) -> str:
     """获取缓存文件路径"""
@@ -75,7 +66,26 @@ async def get_journey(journey_id: str, force_refresh: bool = False):
     # 3. 直接返回原始数据
     return raw_data
 
-app.mount("/", StaticFiles(directory=static_path, html=True), name="static")
+@app.get("/api/cached-journeys")
+async def get_cached_journeys():
+    """获取所有缓存的 journey ID"""
+    files = os.listdir(CACHE_DIR)
+    ids = [f.replace(".json", "") for f in files if f.endswith(".json")]
+    return {"ids": ids}
+
+@app.get("/api/journey/summary")
+async def get_journey_summary(journey_id: str):
+    """
+    获取行程的精简汇总摘要信息
+    """
+    raw_data = load_from_cache(journey_id)
+    if not raw_data:
+        raw_data = await fetch_journey_from_api(journey_id)
+        save_to_cache(journey_id, raw_data)
+        
+    return get_summary(raw_data)
+
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
 def main():
     uvicorn.run(app, host="127.0.0.1", port=8000)

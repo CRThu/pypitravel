@@ -1,7 +1,7 @@
 [project]
 name = "pypitravel"
 version = "0.1.0"
-description = "旅行规划与数据可视化工具"
+description = "圆周旅迹行程规划导出与可视化工具"
 dependencies = [
     "fastapi",
     "uvicorn",

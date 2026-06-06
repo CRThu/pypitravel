@@ -1,32 +1,157 @@
 <!DOCTYPE html>
-<html>
-<head><title>pypitravel API Test</title></head>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>pypitravel API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .control-panel { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        
+        /* Excel-like Table Styles */
+        #summaryTable { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px; 
+            font-size: 14px; 
+        }
+        #summaryTable th, #summaryTable td { 
+            border: 1px solid #ddd; 
+            padding: 8px; 
+            text-align: left; 
+        }
+        #summaryTable th { background-color: #f2f2f2; position: sticky; top: 0; }
+        #summaryTable tr:nth-child(even) { background-color: #f9f9f9; }
+        #summaryTable tr:hover { background-color: #f1f1f1; }
+        .day-row { font-weight: bold; background-color: #e8e8e8 !important; }
+    </style>
+</head>
 <body>
     <h1>pypitravel API Test</h1>
-    <input type="text" id="urlInput" placeholder="在此粘贴行程链接" style="width: 300px;">
-    <label>
-        <input type="checkbox" id="forceRefresh"> 强制重新获取
-    </label>
-    <button id="btn">解析行程</button>
-    <pre id="result"></pre>
-    <script>
-        document.getElementById('btn').onclick = async () => {
-            const url = document.getElementById('urlInput').value;
-            const forceRefresh = document.getElementById('forceRefresh').checked;
-            
-            // 改进后的正则：修复了斜杠转义问题，兼容 /detail/12345 和 ?journey_id=12345
-            const match = url.match(/(?:detail\/|journey_id=)(\d+)/);
-            const journeyId = match ? match[1] : url.trim();
+    
+    <div class="control-panel">
+        <h3>1. 加载已缓存行程</h3>
+        <select id="cacheSelector">
+            <option value="">-- 请选择 --</option>
+        </select>
+        <button id="loadCacheBtn">加载缓存</button>
+    </div>
 
-            if (!journeyId) {
-                alert("请输入有效的 journey_id 或包含它的链接");
+    <div class="control-panel">
+        <h3>2. 解析新行程链接</h3>
+        <input type="text" id="urlInput" placeholder="在此粘贴行程链接" style="width: 300px;">
+        <label>
+            <input type="checkbox" id="forceRefresh"> 强制刷新
+        </label>
+        <button id="fetchUrlBtn">解析链接</button>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+        <button id="exportBtn" style="display:none; background-color: #4CAF50; color: white; border: none; padding: 10px 20px; cursor: pointer; font-size: 16px;">导出当前行程为 Excel (CSV)</button>
+    </div>
+
+    <div id="summaryContainer"></div>
+    
+    <script>
+        let currentData = null; // 全局存储当前数据
+
+        async function loadCacheList() {
+            const res = await fetch('/api/cached-journeys');
+            const data = await res.json();
+            const selector = document.getElementById('cacheSelector');
+            selector.innerHTML = '<option value="">-- 请选择 --</option>';
+            data.ids.forEach(id => {
+                const option = document.createElement('option');
+                option.value = id;
+                option.text = id;
+                selector.appendChild(option);
+            });
+        }
+        loadCacheList();
+
+        function renderSummaryTable(data) {
+            currentData = data; // 存储当前数据
+            document.getElementById('exportBtn').style.display = 'inline-block'; // 显示导出按钮
+            
+            const container = document.getElementById('summaryContainer');
+            if (data.error) {
+                container.innerHTML = `<p style="color:red;">错误: ${data.error}</p>`;
                 return;
             }
 
-            const fetchUrl = `/api/journey?journey_id=${journeyId}&force_refresh=${forceRefresh}`;
-            const res = await fetch(fetchUrl);
-            const data = await res.json();
-            document.getElementById('result').innerText = JSON.stringify(data, null, 2);
+            let html = `<h2>${data.journey_name}</h2>
+                        <p>总天数: ${data.total_days} | 总事件数: ${data.total_events}</p>
+                        <table id="summaryTable">
+                            <thead>
+                                <tr><th>日期/计划</th><th>事件内容</th></tr>
+                            </thead>
+                            <tbody>`;
+            
+            data.daily_summaries.forEach(day => {
+                day.events.forEach((event, index) => {
+                    let displayName = event.name;
+                    if (event.note && event.note.trim() !== "") {
+                        displayName += ` (${event.note})`;
+                    }
+
+                    html += `<tr>
+                                <td>${index === 0 ? day.day_plan_name : ''}</td>
+                                <td>${displayName}</td>
+                             </tr>`;
+                });
+            });
+            
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        // 新增：CSV 导出逻辑
+        document.getElementById('exportBtn').onclick = () => {
+            if (!currentData) return;
+
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // \uFEFF 确保 Excel 能正确识别 UTF-8 编码
+            csvContent += "日期/计划,事件内容\r\n"; // 更新表头
+
+            currentData.daily_summaries.forEach(day => {
+                day.events.forEach((event, index) => {
+                    const planName = (index === 0) ? day.day_plan_name : "";
+                    
+                    // 合并 name 和 note
+                    let displayName = event.name;
+                    if (event.note && event.note.trim() !== "") {
+                        displayName += ` (${event.note})`;
+                    }
+                    
+                    csvContent += `"${planName.replace(/"/g, '""')}","${displayName.replace(/"/g, '""')}"\r\n`;
+                });
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `${currentData.journey_name}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        document.getElementById('loadCacheBtn').onclick = async () => {
+            const journeyId = document.getElementById('cacheSelector').value;
+            if (!journeyId) return alert("请先选择 ID");
+            const res = await fetch(`/api/journey/summary?journey_id=${journeyId}`);
+            renderSummaryTable(await res.json());
+        };
+
+        document.getElementById('fetchUrlBtn').onclick = async () => {
+            const url = document.getElementById('urlInput').value;
+            const match = url.match(/(?:detail\/|journey_id=)(\d+)/);
+            const journeyId = match ? match[1] : url.trim();
+            if (!journeyId) return alert("请输入 ID/链接");
+            
+            // 确保先解析数据
+            await fetch(`/api/journey?journey_id=${journeyId}&force_refresh=${document.getElementById('forceRefresh').checked}`);
+            const res = await fetch(`/api/journey/summary?journey_id=${journeyId}`);
+            renderSummaryTable(await res.json());
+            loadCacheList();
         };
     </script>
 </body>
