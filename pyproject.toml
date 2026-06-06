@@ -2,6 +2,7 @@
 name = "pypitravel"
 version = "1.0.0"
 description = "圆周旅迹行程规划导出与可视化工具"
+readme = "README.md"
 dependencies = [
     "fastapi",
     "uvicorn",

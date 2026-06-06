@@ -38,6 +38,10 @@ uv pip install -e .
 pypitravel
 ```
 
+## 应用预览
+
+![应用截图](img/demo.png)
+
 ## 技术栈
 *   **后端**: FastAPI, httpx
 *   **前端**: HTML, JavaScript (Leaflet.js 规划中)
