@@ -1,5 +1,9 @@
 # PyPitravel
 
+[![PyPI version](https://img.shields.io/pypi/v/pypitravel.svg)](https://pypi.org/project/pypitravel/)
+[![Python version](https://img.shields.io/badge/python-3.12+-yellow.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
+
 PyPitravel 是一个用于解析旅行规划平台《圆周旅迹》数据、提供行程规划导出与可视化的工具。
 
 ## 项目由来
@@ -15,32 +19,34 @@ PyPitravel 是一个用于解析旅行规划平台《圆周旅迹》数据、提
 
 ## 快速上手
 
-### 环境要求
-*   Python >= 3.12
-*   [uv](https://github.com/astral-sh/uv) (推荐用于依赖管理)
-
-### 开发运行
-1.  同步依赖:
-    ```bash
-    uv sync
-    ```
-2.  启动应用:
-    ```bash
-    uv run pypitravel
-    ```
-3.  访问浏览器:
-    打开 `http://127.0.0.1:8000` 即可开始使用。
-
-## CLI 安装
-你可以将本项目安装到本地环境以便直接调用：
+### 安装
+使用 pip 安装：
 ```bash
-uv pip install -e .
+pip install pypitravel
+```
+
+### 启动
+安装完成后，在终端直接运行：
+```bash
 pypitravel
 ```
+随后打开浏览器访问 `http://127.0.0.1:8000` 即可使用。
+
+## 从源码安装 (开发者)
+如果你需要进行二次开发或修改源码：
+1. 环境要求：Python >= 3.12，安装 [uv](https://github.com/astral-sh/uv)。
+2. 克隆项目并安装依赖：
+   ```bash
+   uv sync
+   ```
+3. 运行项目：
+   ```bash
+   uv run pypitravel
+   ```
 
 ## 应用预览
 
-![应用截图](img/demo.png)
+![应用截图](https://raw.githubusercontent.com/crthu/pypitravel/master/img/demo.png)
 
 ## 技术栈
 *   **后端**: FastAPI, httpx
