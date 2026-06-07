@@ -17,13 +17,22 @@ def get_summary(data: dict) -> dict:
         raw_events = day_plan.get("events", [])
         
         # 精简事件：只保留 name 和 note
-        simplified_events = [
-            {
+        simplified_events = []
+        for event in raw_events:
+            simplified_event = {
                 "name": event.get("name", "未命名事件"),
                 "note": event.get("note", "")
             }
-            for event in raw_events
-        ]
+            
+            # 如果是交通，平铺提取 transport_info
+            event_type = event.get("event_type")
+            event_type_v2 = event.get("event_type_v2")
+            if event_type == 201 or event_type_v2 == 201:
+                transport_info = event.get("transport_info")
+                if transport_info and isinstance(transport_info, dict):
+                    simplified_event.update(transport_info)
+            
+            simplified_events.append(simplified_event)
         
         event_count = len(simplified_events)
         

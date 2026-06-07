@@ -53,6 +53,10 @@ async def fetch_journey_from_api(journey_id: str) -> dict:
 @app.get("/api/journey")
 async def get_journey(journey_id: str, force_refresh: bool = False):
     """API 入口：协调缓存与数据获取"""
+    # 校验 journey_id 是否合法
+    if not journey_id.isdigit():
+        return {"error": f"无效的行程 ID: {journey_id}，请确保输入的是纯数字 ID。"}
+
     # 1. 尝试从缓存获取 (如果 force_refresh 为 True，跳过缓存)
     raw_data = None
     if not force_refresh:
@@ -78,6 +82,10 @@ async def get_journey_summary(journey_id: str):
     """
     获取行程的精简汇总摘要信息
     """
+    # 校验 journey_id 是否合法
+    if not journey_id.isdigit():
+        return {"error": f"无效的行程 ID: {journey_id}，请确保输入的是纯数字 ID。"}
+
     raw_data = load_from_cache(journey_id)
     if not raw_data:
         raw_data = await fetch_journey_from_api(journey_id)

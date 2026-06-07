@@ -88,9 +88,22 @@
             
             data.daily_summaries.forEach(day => {
                 day.events.forEach((event, index) => {
+                    // 格式化时间戳
+                    function formatTime(timestamp) {
+                        if (!timestamp) return "";
+                        const date = new Date(timestamp);
+                        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                    }
+
+                    // 合并 name, note 和 transport info
                     let displayName = event.name;
                     if (event.note && event.note.trim() !== "") {
                         displayName += ` (${event.note})`;
+                    }
+                    if (event.transport_num) {
+                        const startTime = formatTime(event.transport_start_time);
+                        const endTime = formatTime(event.transport_end_time);
+                        displayName += ` [${event.transport_num} | ${startTime} - ${endTime}]`;
                     }
 
                     html += `<tr>
@@ -115,10 +128,22 @@
                 day.events.forEach((event, index) => {
                     const planName = (index === 0) ? day.day_plan_name : "";
                     
-                    // 合并 name 和 note
+                    // 格式化时间戳
+                    function formatTime(timestamp) {
+                        if (!timestamp) return "";
+                        const date = new Date(timestamp);
+                        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                    }
+
+                    // 合并 name, note 和 transport info
                     let displayName = event.name;
                     if (event.note && event.note.trim() !== "") {
                         displayName += ` (${event.note})`;
+                    }
+                    if (event.transport_num) {
+                        const startTime = formatTime(event.transport_start_time);
+                        const endTime = formatTime(event.transport_end_time);
+                        displayName += ` [${event.transport_num} | ${startTime} - ${endTime}]`;
                     }
                     
                     csvContent += `"${planName.replace(/"/g, '""')}","${displayName.replace(/"/g, '""')}"\r\n`;
@@ -142,13 +167,25 @@
         };
 
         document.getElementById('fetchUrlBtn').onclick = async () => {
-            const url = document.getElementById('urlInput').value;
+            const url = document.getElementById('urlInput').value.trim();
+            // 尝试从链接中匹配数字 ID，或者如果输入本身就是纯数字 ID
             const match = url.match(/(?:detail\/|journey_id=)(\d+)/);
-            const journeyId = match ? match[1] : url.trim();
-            if (!journeyId) return alert("请输入 ID/链接");
+            const journeyId = match ? match[1] : (/^\d+$/.test(url) ? url : null);
+            
+            if (!journeyId) {
+                alert("错误：未能从输入内容中提取到有效的行程 ID (应为纯数字)。\n请直接输入 ID 或粘贴包含 ID 的完整链接。");
+                return;
+            }
             
             // 确保先解析数据
-            await fetch(`/api/journey?journey_id=${journeyId}&force_refresh=${document.getElementById('forceRefresh').checked}`);
+            const response = await fetch(`/api/journey?journey_id=${journeyId}&force_refresh=${document.getElementById('forceRefresh').checked}`);
+            const result = await response.json();
+            
+            if (result.error) {
+                alert("后端错误: " + result.error);
+                return;
+            }
+            
             const res = await fetch(`/api/journey/summary?journey_id=${journeyId}`);
             renderSummaryTable(await res.json());
             loadCacheList();

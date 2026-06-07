@@ -50,7 +50,25 @@ def list_and_parse_cache():
                 for daily in result.get('daily_summaries', []):
                     print(f"      - {daily['day_plan_name']}: {daily['event_count']} 个事件")
                     for event in daily.get('events', []):
-                        print(f"        * {event['name']} (Note: {event['note']})")
+                        info = ""
+                        note = event.get('note', '').strip()
+                        if note:
+                            info += f" (Note: {note})"
+                        
+                        if 'transport_num' in event:
+                            # 格式化时间戳 (假设是毫秒)
+                            import datetime
+                            def format_ts(ts):
+                                try:
+                                    dt = datetime.datetime.fromtimestamp(ts / 1000)
+                                    return dt.strftime('%H:%M')
+                                except:
+                                    return str(ts)
+                            
+                            start_time = format_ts(event.get('transport_start_time'))
+                            end_time = format_ts(event.get('transport_end_time'))
+                            info += f" [{event['transport_num']} | {start_time} - {end_time}]"
+                        print(f"        * {event['name']}{info}")
         except Exception as e:
             print(f"  [!] 文件处理异常: {e}")
         print("\n")
