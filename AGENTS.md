@@ -15,7 +15,7 @@
     *   `GET /api/journey/summary?journey_id={journey_id}` (获取精简摘要)
     *   `GET /api/cached-journeys` (获取已缓存行程列表)
 4.  **后端代理**: FastAPI 后端 (`src/pypitravel/cli.py`) 接收请求：
-    *   **缓存逻辑**: 优先读取本地 `src/pypitravel/data/cache/` 目录。
+    *   **缓存逻辑**: 优先读取本地缓存目录（开发环境为 `src/pypitravel/data/cache/`，打包后为可执行文件同级 `data/cache/`，由 `paths.py` 统一管理）。
     *   **远程代理**: 若缓存不存在或请求强制刷新，调用 `httpx` 发起 API 请求，伪装 `User-Agent` 与 `Referer`。
 5.  **数据响应**: 后端返回 JSON 数据。
 6.  **可视化处理**: 前端接收到数据后，进行解析并在地图上绘制（计划中）。
@@ -93,6 +93,7 @@
 *   [x] 实现本地缓存管理 (`data/cache/`) 与路径模块化 (`paths.py`)。
 *   [x] 实现业务解析模块 (`journey_parser.py`)。
 *   [x] 优化数据处理逻辑（已实现 CSV 导出、交通信息平铺解析）。
+*   [x] 实现自动寻端口与浏览器唤起（`find_available_port` + `wait_for_server` + `webbrowser.open`）。
 *   [ ] 实现圆周旅迹数据深度分析。
 
 ### 2. 前端 (交互式地图)
@@ -107,8 +108,17 @@
 
 ---
 
-## 使用指南
+## 开发约定与操作指南
 
-*   **同步环境**: `uv sync`
-*   **开发运行**: `uv run pypitravel`
-*   **CLI 安装**: `uv pip install -e .` (随后直接执行 `pypitravel`)
+### 操作原则
+*   **严禁自动提交**: 本项目的所有操作（如文件修改、版本更新等）均**严禁在未经用户明确同意的情况下执行自动 commit/push 操作**。Agent 必须在完成文件变更后停下来等待用户确认。
+
+### 版本管理 (`bump-my-version`)
+使用 `bump-my-version` 工具进行版本更新：
+```bash
+# 执行 patch 版本升级 (例如 1.0.2 -> 1.0.3)
+uv run bump-my-version bump patch
+
+# 更新锁文件
+uv lock
+```

@@ -15,5 +15,11 @@ CACHE_DIR = os.path.join(base_path, "data", "cache")
 # 静态文件目录
 STATIC_DIR = os.path.join(base_path, "static")
 
+def set_cache_dir(path: str):
+    """覆盖缓存目录路径"""
+    global CACHE_DIR
+    CACHE_DIR = path
+    os.makedirs(CACHE_DIR, exist_ok=True)
+
 # 确保必要的目录存在
 os.makedirs(CACHE_DIR, exist_ok=True)

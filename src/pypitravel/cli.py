@@ -6,8 +6,12 @@ import uvicorn
 import os
 import sys
 import json
+import socket
+import threading
+import webbrowser
+import argparse
 # 导入配置和解析器
-from .paths import CACHE_DIR, STATIC_DIR
+from . import paths
 from .journey_parser import get_summary
 
 app = FastAPI()
@@ -24,7 +28,7 @@ app.add_middleware(
 
 def get_cache_path(journey_id: str) -> str:
     """获取缓存文件路径"""
-    return os.path.join(CACHE_DIR, f"{journey_id}.json")
+    return os.path.join(paths.CACHE_DIR, f"{journey_id}.json")
 
 def load_from_cache(journey_id: str) -> dict | None:
     """从缓存读取数据"""
@@ -73,7 +77,7 @@ async def get_journey(journey_id: str, force_refresh: bool = False):
 @app.get("/api/cached-journeys")
 async def get_cached_journeys():
     """获取所有缓存的 journey ID"""
-    files = os.listdir(CACHE_DIR)
+    files = os.listdir(paths.CACHE_DIR)
     ids = [f.replace(".json", "") for f in files if f.endswith(".json")]
     return {"ids": ids}
 
@@ -93,10 +97,55 @@ async def get_journey_summary(journey_id: str):
         
     return get_summary(raw_data)
 
-app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+app.mount("/", StaticFiles(directory=paths.STATIC_DIR, html=True), name="static")
+
+def check_port(port: int) -> bool:
+    """检查端口是否可用"""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(("127.0.0.1", port))
+            return True
+        except OSError:
+            return False
+
+def wait_for_server(host: str, port: int, timeout: float = 5.0):
+    """轮询端口直到服务就绪"""
+    import time
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection((host, port), timeout=0.5):
+                return True
+        except OSError:
+            time.sleep(0.2)
+    return False
+
+def open_browser_when_ready(host: str, port: int):
+    """服务就绪后打开浏览器"""
+    def _open():
+        if wait_for_server(host, port):
+            webbrowser.open(f"http://{host}:{port}")
+    threading.Thread(target=_open, daemon=True).start()
 
 def main():
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    parser = argparse.ArgumentParser(description="圆周旅迹行程规划导出与可视化工具")
+    parser.add_argument("-p", "--port", type=int, default=8000, help="端口号 (默认: 8000)")
+    parser.add_argument("--cache-dir", type=str, default=None, help="缓存目录路径 (默认: 程序目录下 data/cache)")
+    parser.add_argument("--no-browser", action="store_true", help="不自动打开浏览器")
+    args = parser.parse_args()
+
+    if args.cache_dir:
+        paths.set_cache_dir(args.cache_dir)
+
+    if not check_port(args.port):
+        print(f"❌ 端口 {args.port} 已被占用，请使用 -p 指定其他端口")
+        sys.exit(1)
+
+    url = f"http://127.0.0.1:{args.port}"
+    print(f"🚀 服务启动于 {url}")
+    if not args.no_browser:
+        open_browser_when_ready("127.0.0.1", args.port)
+    uvicorn.run(app, host="127.0.0.1", port=args.port)
 
 if __name__ == "__main__":
     main()
