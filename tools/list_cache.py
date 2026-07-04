@@ -11,8 +11,8 @@ sys.path.append(os.path.join(project_root, 'src'))
 from pypitravel.journey_parser import get_summary
 
 def list_and_parse_cache():
-    # 缓存目录路径 (与 cli.py 逻辑保持一致)
-    cache_dir = os.path.join(project_root, 'src', 'pypitravel', 'data', 'cache')
+    # 缓存目录路径 (使用 paths.py 中的定义)
+    cache_dir = os.path.join(os.path.expanduser("~"), ".pypitravel", "cache")
     
     if not os.path.exists(cache_dir):
         print(f"[-] 错误: 缓存目录不存在: {cache_dir}")

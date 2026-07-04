@@ -15,7 +15,7 @@
     *   `GET /api/journey/summary?journey_id={journey_id}` (获取精简摘要)
     *   `GET /api/cached-journeys` (获取已缓存行程列表)
 4.  **后端代理**: FastAPI 后端 (`src/pypitravel/cli.py`) 接收请求：
-    *   **缓存逻辑**: 优先读取本地缓存目录（开发环境为 `src/pypitravel/data/cache/`，打包后为可执行文件同级 `data/cache/`，由 `paths.py` 统一管理）。
+    *   **缓存逻辑**: 优先读取本地缓存目录（默认为 `~/.pypitravel/cache/`，可通过 `--cache-dir` 参数自定义，由 `paths.py` 统一管理）。
     *   **远程代理**: 若缓存不存在或请求强制刷新，调用 `httpx` 发起 API 请求，伪装 `User-Agent` 与 `Referer`。
 5.  **数据响应**: 后端返回 JSON 数据。
 6.  **可视化处理**: 前端接收到数据后，进行解析并在地图上绘制（计划中）。
@@ -90,7 +90,7 @@
 *   [x] 建立标准包结构 `src/pypitravel/`。
 *   [x] 配置 `pyproject.toml` 支持 CLI 脚本入口 `pypitravel`。
 *   [x] 编写 `cli.py`，实现 API 代理及静态文件映射。
-*   [x] 实现本地缓存管理 (`data/cache/`) 与路径模块化 (`paths.py`)。
+*   [x] 实现本地缓存管理 (`~/.pypitravel/cache/`) 与路径模块化 (`paths.py`)。
 *   [x] 实现业务解析模块 (`journey_parser.py`)。
 *   [x] 优化数据处理逻辑（已实现 CSV 导出、交通信息平铺解析）。
 *   [x] 实现自动寻端口与浏览器唤起（`find_available_port` + `wait_for_server` + `webbrowser.open`）。

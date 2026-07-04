@@ -130,7 +130,7 @@ def open_browser_when_ready(host: str, port: int):
 def main():
     parser = argparse.ArgumentParser(description="圆周旅迹行程规划导出与可视化工具")
     parser.add_argument("-p", "--port", type=int, default=8000, help="端口号 (默认: 8000)")
-    parser.add_argument("--cache-dir", type=str, default=None, help="缓存目录路径 (默认: 程序目录下 data/cache)")
+    parser.add_argument("--cache-dir", type=str, default=None, help="缓存目录路径 (默认: ~/.pypitravel/cache)")
     parser.add_argument("--no-browser", action="store_true", help="不自动打开浏览器")
     args = parser.parse_args()
 
