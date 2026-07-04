@@ -76,10 +76,18 @@ async def get_journey(journey_id: str, force_refresh: bool = False):
 
 @app.get("/api/cached-journeys")
 async def get_cached_journeys():
-    """获取所有缓存的 journey ID"""
+    """获取所有缓存的行程信息（ID + 名称）"""
     files = os.listdir(paths.CACHE_DIR)
-    ids = [f.replace(".json", "") for f in files if f.endswith(".json")]
-    return {"ids": ids}
+    journeys = []
+    for f in files:
+        if f.endswith(".json"):
+            journey_id = f.replace(".json", "")
+            data = load_from_cache(journey_id)
+            name = "未命名行程"
+            if data and "data" in data and "journey" in data["data"]:
+                name = data["data"]["journey"].get("name", "未命名行程")
+            journeys.append({"id": journey_id, "name": name})
+    return {"journeys": journeys}
 
 @app.get("/api/journey/summary")
 async def get_journey_summary(journey_id: str):

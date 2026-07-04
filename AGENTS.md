@@ -92,15 +92,16 @@
 *   [x] 编写 `cli.py`，实现 API 代理及静态文件映射。
 *   [x] 实现本地缓存管理 (`~/.pypitravel/cache/`) 与路径模块化 (`paths.py`)。
 *   [x] 实现业务解析模块 (`journey_parser.py`)。
-*   [x] 优化数据处理逻辑（已实现 CSV 导出、交通信息平铺解析）。
+*   [x] 优化数据处理逻辑（已实现 XLSX 导出、交通信息平铺解析）。
 *   [x] 实现自动寻端口与浏览器唤起（`find_available_port` + `wait_for_server` + `webbrowser.open`）。
 *   [ ] 实现圆周旅迹数据深度分析。
 
 ### 2. 前端 (交互式地图)
 *   [x] 建立基础静态页面架构。
 *   [x] 实现缓存列表选择与双模式请求。
+*   [x] UI 美化（Tailwind CSS、卡片布局、表格样式）。
+*   [x] 行程导出为 XLSX 格式（SheetJS）。
 *   [ ] 集成 Leaflet.js，完成路径可视化开发。
-*   [ ] 优化前端构建流程（整合 `Bun` 构建资源）。
 
 ### 3. 打包与发布
 *   [ ] 配置 `Nuitka` 打包脚本，确保包含所有依赖、静态文件（`static/`）并优化体积。

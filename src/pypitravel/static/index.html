@@ -2,194 +2,334 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>pypitravel API Test</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .control-panel { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
-        
-        /* Excel-like Table Styles */
-        #summaryTable { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-top: 20px; 
-            font-size: 14px; 
-        }
-        #summaryTable th, #summaryTable td { 
-            border: 1px solid #ddd; 
-            padding: 8px; 
-            text-align: left; 
-        }
-        #summaryTable th { background-color: #f2f2f2; position: sticky; top: 0; }
-        #summaryTable tr:nth-child(even) { background-color: #f9f9f9; }
-        #summaryTable tr:hover { background-color: #f1f1f1; }
-        .day-row { font-weight: bold; background-color: #e8e8e8 !important; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyPitravel - 圆周旅迹行程规划</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 </head>
-<body>
-    <h1>pypitravel API Test</h1>
-    
-    <div class="control-panel">
-        <h3>1. 加载已缓存行程</h3>
-        <select id="cacheSelector">
-            <option value="">-- 请选择 --</option>
-        </select>
-        <button id="loadCacheBtn">加载缓存</button>
+<body class="bg-gray-100 min-h-screen">
+    <!-- 顶部标题栏 -->
+    <header class="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg">
+        <div class="max-w-6xl mx-auto px-6 py-4">
+            <h1 class="text-2xl font-bold">PyPitravel</h1>
+            <p class="text-blue-100 text-sm">圆周旅迹行程规划与可视化</p>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="max-w-6xl mx-auto px-6 py-8">
+        <!-- 控制区：两栏布局 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <!-- 缓存行程卡片 -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <div class="flex items-center mb-4">
+                    <span class="text-2xl mr-3">📁</span>
+                    <h2 class="text-lg font-semibold text-gray-800">已缓存行程</h2>
+                </div>
+                <div class="space-y-3">
+                    <select id="cacheSelector" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        <option value="">-- 请选择行程 --</option>
+                    </select>
+                    <button id="loadCacheBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition duration-200 transform hover:scale-[1.02]">
+                        加载选中行程
+                    </button>
+                </div>
+            </div>
+
+            <!-- 解析新行程卡片 -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <div class="flex items-center mb-4">
+                    <span class="text-2xl mr-3">🔗</span>
+                    <h2 class="text-lg font-semibold text-gray-800">解析新行程</h2>
+                </div>
+                <div class="space-y-3">
+                    <input type="text" id="urlInput" 
+                        placeholder="粘贴行程链接或输入ID，如：123456"
+                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <div class="flex items-center gap-4">
+                        <label class="flex items-center text-sm text-gray-600 cursor-pointer">
+                            <input type="checkbox" id="forceRefresh" class="mr-2 rounded text-blue-600 focus:ring-blue-500">
+                            强制刷新
+                        </label>
+                        <button id="fetchUrlBtn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 px-4 rounded-lg transition duration-200 transform hover:scale-[1.02]">
+                            解析行程
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 表格区域 -->
+        <div id="summaryContainer" class="bg-white rounded-xl shadow-md overflow-hidden">
+            <!-- 表格内容动态加载 -->
+        </div>
+    </main>
+
+    <!-- Toast 提示 -->
+    <div id="toast" class="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg opacity-0 pointer-events-none transition-all duration-300 z-50">
+        <span id="toastMessage"></span>
     </div>
 
-    <div class="control-panel">
-        <h3>2. 解析新行程链接</h3>
-        <input type="text" id="urlInput" placeholder="在此粘贴行程链接" style="width: 300px;">
-        <label>
-            <input type="checkbox" id="forceRefresh"> 强制刷新
-        </label>
-        <button id="fetchUrlBtn">解析链接</button>
-    </div>
-
-    <div style="margin-bottom: 20px;">
-        <button id="exportBtn" style="display:none; background-color: #4CAF50; color: white; border: none; padding: 10px 20px; cursor: pointer; font-size: 16px;">导出当前行程为 Excel (CSV)</button>
-    </div>
-
-    <div id="summaryContainer"></div>
-    
     <script>
-        let currentData = null; // 全局存储当前数据
+        let currentData = null;
 
+        // Toast 提示函数
+        function showToast(message, type = 'error') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            toastMessage.textContent = message;
+            toast.className = `fixed top-4 right-4 text-white px-6 py-3 rounded-lg shadow-lg transition-all duration-300 z-50 ${type === 'error' ? 'bg-red-500' : 'bg-green-500'}`;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            toast.classList.add('opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        // 加载缓存列表
         async function loadCacheList() {
-            const res = await fetch('/api/cached-journeys');
-            const data = await res.json();
-            const selector = document.getElementById('cacheSelector');
-            selector.innerHTML = '<option value="">-- 请选择 --</option>';
-            data.ids.forEach(id => {
-                const option = document.createElement('option');
-                option.value = id;
-                option.text = id;
-                selector.appendChild(option);
-            });
+            try {
+                const res = await fetch('/api/cached-journeys');
+                const data = await res.json();
+                const selector = document.getElementById('cacheSelector');
+                selector.innerHTML = '<option value="">-- 请选择行程 --</option>';
+                data.journeys.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.id;
+                    option.text = `${item.name} | ${item.id}`;
+                    selector.appendChild(option);
+                });
+            } catch (e) {
+                console.error('加载缓存列表失败:', e);
+            }
         }
         loadCacheList();
 
+        // 格式化时间戳
+        function formatTime(timestamp) {
+            if (!timestamp) return "";
+            const date = new Date(timestamp);
+            return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        }
+
+        // 渲染行程摘要表格
         function renderSummaryTable(data) {
-            currentData = data; // 存储当前数据
-            document.getElementById('exportBtn').style.display = 'inline-block'; // 显示导出按钮
-            
+            currentData = data;
             const container = document.getElementById('summaryContainer');
+            
             if (data.error) {
-                container.innerHTML = `<p style="color:red;">错误: ${data.error}</p>`;
+                container.innerHTML = `
+                    <div class="p-6">
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                            <p class="text-red-700">❌ ${data.error}</p>
+                        </div>
+                    </div>`;
                 return;
             }
 
-            let html = `<h2>${data.journey_name}</h2>
-                        <p>总天数: ${data.total_days} | 总事件数: ${data.total_events}</p>
-                        <table id="summaryTable">
-                            <thead>
-                                <tr><th>日期/计划</th><th>事件内容</th></tr>
-                            </thead>
-                            <tbody>`;
+            let html = `
+                <div class="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">📋 ${data.journey_name}</h2>
+                        <p class="text-sm text-gray-500 mt-1">共 ${data.total_days} 天 · ${data.total_events} 个事件</p>
+                    </div>
+                    <button id="exportBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-5 rounded-lg transition duration-200">
+                        导出 XLSX
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full border-collapse">
+                        <thead class="bg-gray-50 border-b-2 border-gray-200">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-36 border-r border-gray-200">日期/计划</th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">事件内容</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
             
-            data.daily_summaries.forEach(day => {
+            data.daily_summaries.forEach((day, dayIdx) => {
                 day.events.forEach((event, index) => {
-                    // 格式化时间戳
-                    function formatTime(timestamp) {
-                        if (!timestamp) return "";
-                        const date = new Date(timestamp);
-                        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-                    }
-
-                    // 合并 name, note 和 transport info
                     let displayName = event.name;
                     if (event.note && event.note.trim() !== "") {
-                        displayName += ` (${event.note})`;
+                        displayName += ` <span class="text-gray-400">(${event.note})</span>`;
                     }
                     if (event.transport_num) {
                         const startTime = formatTime(event.transport_start_time);
                         const endTime = formatTime(event.transport_end_time);
-                        displayName += ` [${event.transport_num} | ${startTime} - ${endTime}]`;
+                        displayName += ` <span class="inline-flex items-center bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded ml-2 font-mono">${event.transport_num} ${startTime}-${endTime}</span>`;
                     }
 
-                    html += `<tr>
-                                <td>${index === 0 ? day.day_plan_name : ''}</td>
-                                <td>${displayName}</td>
+                    const bgColor = dayIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50';
+                    const isDayStart = index === 0;
+                    html += `<tr class="${bgColor} border-b border-gray-100 hover:bg-blue-50/60 transition-colors">
+                                <td class="px-4 py-1.5 text-sm font-medium align-top border-r border-gray-100 ${isDayStart ? 'text-gray-900' : 'text-gray-400'}">
+                                    ${isDayStart ? `<span class="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-bold">${day.day_plan_name}</span>` : ''}
+                                </td>
+                                <td class="px-4 py-1.5 text-sm text-gray-700">${displayName}</td>
                              </tr>`;
                 });
             });
             
-            html += `</tbody></table>`;
+            html += `</tbody></table></div>`;
             container.innerHTML = html;
+
+            // 绑定导出按钮事件
+            document.getElementById('exportBtn').onclick = exportXLSX;
         }
 
-        // 新增：CSV 导出逻辑
-        document.getElementById('exportBtn').onclick = () => {
+        // XLSX 导出
+        function exportXLSX() {
             if (!currentData) return;
+            
+            const rows = [];
+            const merges = [];
+            const styles = [];
+            
+            // 表头样式
+            const headerStyle = {
+                font: { bold: true, color: { rgb: "FFFFFF" }, size: 11, name: "微软雅黑" },
+                fill: { fgColor: { rgb: "2563EB" } },
+                alignment: { horizontal: "center", vertical: "center" },
+                border: {
+                    bottom: { style: "thin", color: { rgb: "1D4ED8" } }
+                }
+            };
+            
+            // 日期单元格样式
+            const dateStyle = {
+                font: { bold: true, color: { rgb: "2563EB" }, size: 10, name: "微软雅黑" },
+                fill: { fgColor: { rgb: "EFF6FF" } },
+                alignment: { horizontal: "center", vertical: "center", wrapText: true },
+                border: {
+                    right: { style: "thin", color: { rgb: "DBEAFE" } }
+                }
+            };
+            
+            // 内容单元格样式
+            const contentStyle = {
+                font: { size: 10, name: "微软雅黑" },
+                alignment: { vertical: "center", wrapText: true },
+                border: {
+                    bottom: { style: "thin", color: { rgb: "E5E7EB" } }
+                }
+            };
+            
+            // 事件内容样式（交通信息高亮）
+            const transportStyle = {
+                font: { size: 10, name: "微软雅黑", color: { rgb: "1E40AF" } },
+                alignment: { vertical: "center", wrapText: true },
+                border: {
+                    bottom: { style: "thin", color: { rgb: "E5E7EB" } }
+                }
+            };
 
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // \uFEFF 确保 Excel 能正确识别 UTF-8 编码
-            csvContent += "日期/计划,事件内容\r\n"; // 更新表头
-
+            // 添加表头
+            rows.push(["日期/计划", "事件内容"]);
+            styles.push([headerStyle, headerStyle]);
+            
             currentData.daily_summaries.forEach(day => {
+                const startRow = rows.length;
                 day.events.forEach((event, index) => {
                     const planName = (index === 0) ? day.day_plan_name : "";
-                    
-                    // 格式化时间戳
-                    function formatTime(timestamp) {
-                        if (!timestamp) return "";
-                        const date = new Date(timestamp);
-                        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-                    }
-
-                    // 合并 name, note 和 transport info
                     let displayName = event.name;
                     if (event.note && event.note.trim() !== "") {
                         displayName += ` (${event.note})`;
                     }
+                    let hasTransport = false;
                     if (event.transport_num) {
                         const startTime = formatTime(event.transport_start_time);
                         const endTime = formatTime(event.transport_end_time);
-                        displayName += ` [${event.transport_num} | ${startTime} - ${endTime}]`;
+                        displayName += `  ${event.transport_num}  ${startTime}-${endTime}`;
+                        hasTransport = true;
                     }
-                    
-                    csvContent += `"${planName.replace(/"/g, '""')}","${displayName.replace(/"/g, '""')}"\r\n`;
+                    rows.push([planName, displayName]);
+                    styles.push([dateStyle, hasTransport ? transportStyle : contentStyle]);
                 });
+                // 合并日期列
+                if (day.events.length > 1) {
+                    merges.push({ s: { r: startRow, c: 0 }, e: { r: startRow + day.events.length - 1, c: 0 } });
+                }
             });
 
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `${currentData.journey_name}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        };
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            
+            // 应用合并单元格
+            ws['!merges'] = merges;
+            
+            // 设置列宽
+            ws['!cols'] = [
+                { wch: 16 },  // 日期列
+                { wch: 60 }   // 内容列
+            ];
+            
+            // 应用单元格样式
+            for (let r = 0; r < rows.length; r++) {
+                for (let c = 0; c < rows[r].length; c++) {
+                    const cell = XLSX.utils.encode_cell({ r, c });
+                    if (!ws[cell]) ws[cell] = { v: rows[r][c] };
+                    ws[cell].s = styles[r][c];
+                }
+            }
+            
+            // 设置行高
+            ws['!rows'] = rows.map((_, i) => i === 0 ? { hpt: 28 } : { hpt: 22 });
+            
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "行程");
+            XLSX.writeFile(wb, `${currentData.journey_name}.xlsx`);
+        }
 
+        // 加载缓存行程
         document.getElementById('loadCacheBtn').onclick = async () => {
             const journeyId = document.getElementById('cacheSelector').value;
-            if (!journeyId) return alert("请先选择 ID");
-            const res = await fetch(`/api/journey/summary?journey_id=${journeyId}`);
-            renderSummaryTable(await res.json());
+            if (!journeyId) {
+                showToast("请先选择一个行程");
+                return;
+            }
+            try {
+                const res = await fetch(`/api/journey/summary?journey_id=${journeyId}`);
+                renderSummaryTable(await res.json());
+            } catch (e) {
+                showToast("加载行程失败: " + e.message);
+            }
         };
 
+        // 解析新行程
         document.getElementById('fetchUrlBtn').onclick = async () => {
             const url = document.getElementById('urlInput').value.trim();
-            // 尝试从链接中匹配数字 ID，或者如果输入本身就是纯数字 ID
             const match = url.match(/(?:detail\/|journey_id=)(\d+)/);
             const journeyId = match ? match[1] : (/^\d+$/.test(url) ? url : null);
             
             if (!journeyId) {
-                alert("错误：未能从输入内容中提取到有效的行程 ID (应为纯数字)。\n请直接输入 ID 或粘贴包含 ID 的完整链接。");
+                showToast("请输入有效的行程链接或数字ID");
                 return;
             }
             
-            // 确保先解析数据
-            const response = await fetch(`/api/journey?journey_id=${journeyId}&force_refresh=${document.getElementById('forceRefresh').checked}`);
-            const result = await response.json();
-            
-            if (result.error) {
-                alert("后端错误: " + result.error);
-                return;
+            try {
+                const response = await fetch(`/api/journey?journey_id=${journeyId}&force_refresh=${document.getElementById('forceRefresh').checked}`);
+                const result = await response.json();
+                
+                if (result.error) {
+                    showToast(result.error);
+                    return;
+                }
+                
+                const res = await fetch(`/api/journey/summary?journey_id=${journeyId}`);
+                renderSummaryTable(await res.json());
+                loadCacheList();
+            } catch (e) {
+                showToast("解析行程失败: " + e.message);
             }
-            
-            const res = await fetch(`/api/journey/summary?journey_id=${journeyId}`);
-            renderSummaryTable(await res.json());
-            loadCacheList();
         };
+
+        // 输入框回车触发解析
+        document.getElementById('urlInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('fetchUrlBtn').click();
+            }
+        });
     </script>
 </body>
 </html>
