@@ -12,7 +12,7 @@ import webbrowser
 import argparse
 # 导入配置和解析器
 from . import paths
-from .journey_parser import get_summary
+from .journey_parser import get_summary, get_map_data
 
 app = FastAPI()
 
@@ -104,6 +104,19 @@ async def get_journey_summary(journey_id: str):
         save_to_cache(journey_id, raw_data)
         
     return get_summary(raw_data)
+
+@app.get("/api/journey/map")
+async def get_journey_map(journey_id: str):
+    """获取行程的地图可视化数据"""
+    if not journey_id.isdigit():
+        return {"error": f"无效的行程 ID: {journey_id}，请确保输入的是纯数字 ID。"}
+
+    raw_data = load_from_cache(journey_id)
+    if not raw_data:
+        raw_data = await fetch_journey_from_api(journey_id)
+        save_to_cache(journey_id, raw_data)
+
+    return get_map_data(raw_data)
 
 app.mount("/", StaticFiles(directory=paths.STATIC_DIR, html=True), name="static")
 

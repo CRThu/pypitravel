@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@^5.24.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/maplibre-gl@^5.24.0/dist/maplibre-gl.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
     <!-- 顶部标题栏 -->
@@ -63,6 +65,15 @@
         <!-- 表格区域 -->
         <div id="summaryContainer" class="bg-white rounded-xl shadow-md overflow-hidden">
             <!-- 表格内容动态加载 -->
+        </div>
+
+        <!-- 地图区域 -->
+        <div id="mapContainer" class="bg-white rounded-xl shadow-md overflow-hidden mt-6" style="display:none">
+            <div class="border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-800">路线地图</h2>
+                <div id="dayFilter" class="flex flex-wrap gap-1"></div>
+            </div>
+            <div id="map" style="width:100%; height:600px;"></div>
         </div>
     </main>
 
@@ -291,6 +302,7 @@
             try {
                 const res = await fetch(`/api/journey/summary?journey_id=${journeyId}`);
                 renderSummaryTable(await res.json());
+                onJourneyLoaded(journeyId);
             } catch (e) {
                 showToast("加载行程失败: " + e.message);
             }
@@ -301,28 +313,311 @@
             const url = document.getElementById('urlInput').value.trim();
             const match = url.match(/(?:detail\/|journey_id=)(\d+)/);
             const journeyId = match ? match[1] : (/^\d+$/.test(url) ? url : null);
-            
+
             if (!journeyId) {
                 showToast("请输入有效的行程链接或数字ID");
                 return;
             }
-            
+
             try {
                 const response = await fetch(`/api/journey?journey_id=${journeyId}&force_refresh=${document.getElementById('forceRefresh').checked}`);
                 const result = await response.json();
-                
+
                 if (result.error) {
                     showToast(result.error);
                     return;
                 }
-                
+
                 const res = await fetch(`/api/journey/summary?journey_id=${journeyId}`);
                 renderSummaryTable(await res.json());
                 loadCacheList();
+                onJourneyLoaded(journeyId);
             } catch (e) {
                 showToast("解析行程失败: " + e.message);
             }
         };
+
+        // ========== 地图模块 ==========
+        let map = null;
+        let currentMapData = null;
+        const DAY_COLORS = [
+            '#3B82F6','#EF4444','#10B981','#F59E0B','#8B5CF6',
+            '#EC4899','#06B6D4','#84CC16','#F97316','#6366F1'
+        ];
+        const ROUTE_STYLES = {
+            flight:  { color: '#3B82F6', width: 2.5, dasharray: [8, 4] },
+            train:   { color: '#10B981', width: 3, dasharray: null },
+            driving: { color: '#F59E0B', width: 3, dasharray: null },
+            walking: { color: '#9CA3AF', width: 1.5, dasharray: [4, 3] },
+            transfer:{ color: '#8B5CF6', width: 2, dasharray: [6, 3] },
+        };
+
+        // --- eviltransform: GCJ-02 → WGS-84 ---
+        const _etEarthR = 6378137.0;
+        function _etOutOfChina(lat, lng) {
+            return lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271;
+        }
+        function _etTransform(x, y) {
+            var xy = x * y, absX = Math.sqrt(Math.abs(x));
+            var xPi = x * Math.PI, yPi = y * Math.PI;
+            var d = 20*Math.sin(6*xPi) + 20*Math.sin(2*xPi);
+            var lat = d + 20*Math.sin(yPi) + 40*Math.sin(yPi/3);
+            var lng = d + 20*Math.sin(xPi) + 40*Math.sin(xPi/3);
+            lat += 160*Math.sin(yPi/12) + 320*Math.sin(yPi/30);
+            lng += 150*Math.sin(xPi/12) + 300*Math.sin(xPi/30);
+            lat *= 2/3; lng *= 2/3;
+            lat += -100 + 2*x + 3*y + 0.2*y*y + 0.1*xy + 0.2*Math.sqrt(absX);
+            lng += 300 + x + 2*y + 0.1*x*x + 0.1*xy + 0.1*Math.sqrt(absX);
+            return { lat, lng };
+        }
+        function _etDelta(lat, lng) {
+            var ee = 0.00669342162296594323;
+            var d = _etTransform(lng - 105, lat - 35);
+            var radLat = lat / 180 * Math.PI;
+            var magic = Math.sin(radLat);
+            magic = 1 - ee * magic * magic;
+            var sqrtM = Math.sqrt(magic);
+            d.lat = (d.lat * 180) / ((_etEarthR * (1 - ee)) / (magic * sqrtM) * Math.PI);
+            d.lng = (d.lng * 180) / (_etEarthR / sqrtM * Math.cos(radLat) * Math.PI);
+            return d;
+        }
+        function gcj2wgs(gcjLat, gcjLng) {
+            if (_etOutOfChina(gcjLat, gcjLng)) return { lat: gcjLat, lng: gcjLng };
+            var d = _etDelta(gcjLat, gcjLng);
+            return { lat: gcjLat - d.lat, lng: gcjLng - d.lng };
+        }
+        function toWGS(lat, lng, coordType) {
+            if (coordType === 'GCJ02') {
+                var r = gcj2wgs(lat, lng);
+                return [r.lng, r.lat];
+            }
+            return [lng, lat];
+        }
+
+        // --- 大圆弧（飞机航线）---
+        function greatCircleArc(start, end, n = 50) {
+            var coords = [];
+            var toRad = Math.PI / 180;
+            var lat1 = start[1] * toRad, lng1 = start[0] * toRad;
+            var lat2 = end[1] * toRad, lng2 = end[0] * toRad;
+            var d = 2 * Math.asin(Math.sqrt(
+                Math.pow(Math.sin((lat2-lat1)/2), 2) +
+                Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin((lng2-lng1)/2), 2)
+            ));
+            if (d < 0.0001) return [start, end];
+            for (var i = 0; i <= n; i++) {
+                var f = i / n;
+                var A = Math.sin((1-f)*d) / Math.sin(d);
+                var B = Math.sin(f*d) / Math.sin(d);
+                var x = A * Math.cos(lat1) * Math.cos(lng1) + B * Math.cos(lat2) * Math.cos(lng2);
+                var y = A * Math.cos(lat1) * Math.sin(lng1) + B * Math.cos(lat2) * Math.sin(lng2);
+                var z = A * Math.sin(lat1) + B * Math.sin(lat2);
+                coords.push([Math.atan2(y, x) / toRad, Math.atan2(z, Math.sqrt(x*x + y*y)) / toRad]);
+            }
+            return coords;
+        }
+
+        // --- Haversine 距离 ---
+        function haverDist(a, b) {
+            var R = 6371000, p = Math.PI / 180;
+            var h = 0.5 - Math.cos((b[1]-a[1])*p)/2 + Math.cos(a[1]*p)*Math.cos(b[1]*p)*(1-Math.cos((b[0]-a[0])*p))/2;
+            return 2 * R * Math.asin(Math.sqrt(h));
+        }
+
+        // --- OSRM 路由 ---
+        const _osrmCache = {};
+        async function fetchOSRM(start, end) {
+            var key = start[0]+','+start[1]+';'+end[0]+','+end[1];
+            if (_osrmCache[key]) return _osrmCache[key];
+            try {
+                var url = `https://router.project-osrm.org/route/v1/driving/${start[0]},${start[1]};${end[0]},${end[1]}?overview=full&geometries=geojson`;
+                var res = await fetch(url);
+                var data = await res.json();
+                if (data.code === 'Ok' && data.routes.length) {
+                    var coords = data.routes[0].geometry.coordinates;
+                    _osrmCache[key] = coords;
+                    return coords;
+                }
+            } catch (e) { console.warn('OSRM failed:', e); }
+            return [start, end];
+        }
+
+        // --- 初始化地图 ---
+        var mapReady = null;
+        function initMap() {
+            if (map) return mapReady;
+            map = new maplibregl.Map({
+                container: 'map',
+                style: 'https://tiles.openfreemap.org/styles/liberty',
+                center: [10, 48],
+                zoom: 4
+            });
+            map.addControl(new maplibregl.NavigationControl());
+            map.addControl(new maplibregl.ScaleControl());
+            mapReady = new Promise(resolve => map.on('load', resolve));
+            return mapReady;
+        }
+
+        // --- 清除地图图层 ---
+        function clearMapLayers() {
+            if (!map || !map.isStyleLoaded()) return;
+            var style = map.getStyle();
+            if (!style) return;
+            var srcIds = [];
+            style.sources && Object.keys(style.sources).forEach(k => {
+                if (k.startsWith('route-') || k.startsWith('poi-')) srcIds.push(k);
+            });
+            style.layers && style.layers.forEach(l => {
+                if (l.id && (l.id.startsWith('route-') || l.id.startsWith('poi-'))) {
+                    map.removeLayer(l.id);
+                }
+            });
+            srcIds.forEach(id => { try { map.removeSource(id); } catch(e){} });
+            // 移除旧 markers
+            document.querySelectorAll('.maplibregl-marker').forEach(m => m.remove());
+        }
+
+        // --- 绘制单条路线 ---
+        async function drawRoute(eA, eB, mode, dayIdx, routeIdx) {
+            if (!eA.start || !eB.start) return;
+            var from = toWGS(eA.start.lat, eA.start.lng, eA.start.coord_type);
+            var to = toWGS(eB.start.lat, eB.start.lng, eB.start.coord_type);
+            var style = ROUTE_STYLES[mode] || ROUTE_STYLES.walking;
+            var coords;
+
+            if (mode === 'flight') {
+                coords = greatCircleArc(from, to);
+            } else if (mode === 'driving' || mode === 'train') {
+                coords = await fetchOSRM(from, to);
+            } else {
+                coords = [from, to];
+            }
+
+            var srcId = 'route-' + dayIdx + '-' + routeIdx;
+            map.addSource(srcId, { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } } });
+            map.addLayer({
+                id: srcId,
+                type: 'line',
+                source: srcId,
+                paint: {
+                    'line-color': style.color,
+                    'line-width': style.width,
+                    'line-dasharray': style.dasharray || [1],
+                }
+            });
+        }
+
+        // --- 添加标记点 ---
+        function addMarker(poi, label, dayIdx, event) {
+            if (!poi) return;
+            var coords = toWGS(poi.lat, poi.lng, poi.coord_type);
+            var color = DAY_COLORS[dayIdx % DAY_COLORS.length];
+            var el = document.createElement('div');
+            el.style.cssText = `background:${color};color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:pointer;`;
+            el.textContent = label;
+
+            var popupHtml = `<div style="font-size:13px;max-width:220px">`
+                + `<b>${poi.name}</b>`
+                + (event.transport_num ? `<br><span style="color:#2563eb">${event.transport_num}</span>` : '')
+                + `</div>`;
+
+            new maplibregl.Marker({ element: el })
+                .setLngLat(coords)
+                .setPopup(new maplibregl.Popup({ offset: 10 }).setHTML(popupHtml))
+                .addTo(map);
+        }
+
+        // --- 加载地图数据并绘制 ---
+        async function loadMapData(journeyId) {
+            try {
+                var res = await fetch(`/api/journey/map?journey_id=${journeyId}`);
+                var data = await res.json();
+                if (data.error) return;
+                currentMapData = data;
+                await initMap();
+                clearMapLayers();
+                renderMap();
+            } catch (e) {
+                console.error('加载地图数据失败:', e);
+            }
+        }
+
+        // --- 渲染地图（带筛选） ---
+        async function renderMap() {
+            if (!map || !currentMapData) return;
+            clearMapLayers();
+            var filterEl = document.getElementById('dayFilter');
+            var checkedDays = new Set();
+            filterEl.querySelectorAll('input[type=checkbox]:checked').forEach(cb => checkedDays.add(cb.value));
+            if (checkedDays.size === 0) currentMapData.days.forEach((d, i) => checkedDays.add(String(i)));
+
+            var allCoords = [];
+            var poiIdx = 0;
+            var routeIdx = 0;
+            var drawPromises = [];
+
+            for (var di = 0; di < currentMapData.days.length; di++) {
+                if (!checkedDays.has(String(di))) continue;
+                var day = currentMapData.days[di];
+                var events = day.events;
+                for (var ei = 0; ei < events.length; ei++) {
+                    var ev = events[ei];
+                    if (ev.start) {
+                        var c = toWGS(ev.start.lat, ev.start.lng, ev.start.coord_type);
+                        allCoords.push(c);
+                        poiIdx++;
+                        addMarker(ev.start, String(poiIdx), di, ev);
+                    }
+                    if (ei < events.length - 1 && ev.transport_mode) {
+                        var nextEv = events[ei + 1];
+                        if (nextEv.start) {
+                            drawPromises.push(drawRoute(ev, nextEv, ev.transport_mode, di, routeIdx++));
+                        }
+                    }
+                }
+            }
+
+            await Promise.all(drawPromises);
+
+            if (allCoords.length > 0) {
+                var bounds = new maplibregl.LngLatBounds();
+                allCoords.forEach(c => bounds.extend(c));
+                map.fitBounds(bounds, { padding: 40, maxZoom: 12 });
+            }
+        }
+
+        // --- 构建日期筛选器 ---
+        function buildDayFilter() {
+            if (!currentMapData) return;
+            var el = document.getElementById('dayFilter');
+            el.innerHTML = '';
+            currentMapData.days.forEach((day, i) => {
+                var cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = String(i);
+                cb.checked = true;
+                cb.className = 'rounded text-blue-600';
+                cb.id = 'daycb-' + i;
+                cb.onchange = () => renderMap();
+                var label = document.createElement('label');
+                label.htmlFor = cb.id;
+                label.className = 'text-xs text-gray-600 cursor-pointer mr-2';
+                label.textContent = day.day_plan_name.split(' ')[0];
+                el.appendChild(cb);
+                el.appendChild(label);
+            });
+        }
+
+        // ========== 入口：加载行程后同时加载地图 ==========
+        var _lastLoadedJourneyId = null;
+
+        function onJourneyLoaded(journeyId) {
+            _lastLoadedJourneyId = journeyId;
+            document.getElementById('mapContainer').style.display = '';
+            loadMapData(journeyId).then(() => {
+                buildDayFilter();
+            });
+        }
 
         // 输入框回车触发解析
         document.getElementById('urlInput').addEventListener('keypress', (e) => {
