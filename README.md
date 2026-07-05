@@ -14,7 +14,7 @@ PyPitravel 是一个用于解析旅行规划平台《圆周旅迹》数据、提
 *   **智能解析**: 自动从旅行行程链接中提取行程 ID，并支持航班交通信息的精简备注。
 *   **API 代理**: 安全地获取旅行规划平台数据，绕过 CORS 跨域拦截。
 *   **本地部署**: 提供轻量级的本地 Web 服务。
-*   **可视化分析**: 支持交互式地图轨迹绘制与行程数据分析（开发中）。
+*   **可视化分析**: 支持交互式地图轨迹绘制，区分飞机/火车/驾车/步行路线，支持日期筛选。
 *   **数据导出**: 支持将行程规划数据导出为 **XLSX** 格式，方便在 Excel 中进行编辑与打印。
 *   **便携运行**: 基于 Nuitka 打包，用户无需安装 Python 环境即可使用。
 
@@ -53,11 +53,16 @@ uvx pypitravel
 
 ## 应用预览
 
-![应用截图](https://raw.githubusercontent.com/crthu/pypitravel/master/img/demo.png)
+### 行程详情
+![行程详情](img/demo-table.png)
+
+### 路线地图
+![路线地图](img/demo-map.png)
 
 ## 技术栈
 *   **后端**: FastAPI, httpx
-*   **前端**: HTML, JavaScript, Tailwind CSS, SheetJS (Leaflet.js 规划中)
+*   **前端**: HTML, JavaScript, Tailwind CSS, SheetJS, MapLibre GL JS
+*   **地图**: MapLibre GL JS + OpenFreeMap + OSRM 路由
 *   **打包**: Nuitka
 *   **依赖管理**: uv
 
