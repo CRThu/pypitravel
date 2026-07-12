@@ -11,7 +11,7 @@
     <script src="https://unpkg.com/maplibre-gl@^5.24.0/dist/maplibre-gl.js"></script>
     <style>
         .tab-btn {
-            padding: 4px 14px;
+            padding: 4px 12px;
             font-size: 13px;
             font-weight: 500;
             border-radius: 6px;
@@ -49,45 +49,81 @@
             z-index: 10;
             background: #F9FAFB;
         }
+        /* 拖动分隔条 */
+        .panel-resizer {
+            width: 6px;
+            cursor: col-resize;
+            background: #E5E7EB;
+            flex-shrink: 0;
+            position: relative;
+            transition: background 0.15s;
+        }
+        .panel-resizer:hover,
+        .panel-resizer.active {
+            background: #3B82F6;
+        }
+        .panel-resizer::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px;
+            height: 24px;
+            background: #9CA3AF;
+            border-radius: 1px;
+        }
+        .panel-resizer:hover::after,
+        .panel-resizer.active::after {
+            background: #fff;
+        }
+        /* 日期筛选：点击日期文字滚动到当天 */
+        #dayFilter label.day-label {
+            transition: color 0.15s;
+        }
+        #dayFilter label.day-label:hover {
+            color: #fff !important;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body class="bg-gray-100 h-screen flex flex-col overflow-hidden">
     <!-- 顶部标题栏 + 控制区 -->
     <header class="bg-gradient-to-r from-blue-600 to-blue-800 text-white shadow-lg flex-shrink-0">
         <!-- 第一行：品牌 + 操作 + Tab -->
-        <div class="max-w-[1800px] mx-auto px-4 py-2 flex items-center gap-4">
-            <h1 class="text-lg font-bold whitespace-nowrap">PyPitravel</h1>
-            <div class="w-px h-6 bg-blue-400"></div>
-            <select id="cacheSelector" class="px-3 py-1.5 text-sm text-gray-800 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 max-w-[300px]">
+        <div class="max-w-[1800px] mx-auto px-4 py-2 flex flex-wrap items-center gap-2.5">
+            <h1 class="text-lg font-bold whitespace-nowrap flex-shrink-0">PyPitravel</h1>
+            <div class="w-px h-5 bg-blue-400 flex-shrink-0"></div>
+            <select id="cacheSelector" class="px-2 py-1 text-base text-gray-800 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 w-56 flex-shrink-0">
                 <option value="">-- 请选择行程 --</option>
             </select>
-            <button id="loadCacheBtn" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium py-1.5 px-4 rounded-lg transition">
+            <button id="loadCacheBtn" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium py-1.5 px-4 rounded transition flex-shrink-0">
                 加载
             </button>
-            <div class="w-px h-6 bg-blue-400"></div>
+            <div class="w-px h-5 bg-blue-400 flex-shrink-0"></div>
             <input type="text" id="urlInput"
                 placeholder="粘贴行程链接或输入ID"
-                class="px-3 py-1.5 text-sm text-gray-800 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 w-56">
-            <label class="flex items-center text-xs text-blue-100 cursor-pointer whitespace-nowrap">
+                class="px-3 py-1.5 text-base text-gray-800 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 w-48 flex-shrink-0">
+            <label class="flex items-center text-sm text-blue-100 cursor-pointer whitespace-nowrap flex-shrink-0">
                 <input type="checkbox" id="forceRefresh" class="mr-1 rounded text-blue-600">
                 强制刷新
             </label>
-            <button id="fetchUrlBtn" class="bg-green-500 hover:bg-green-600 text-white text-sm font-medium py-1.5 px-4 rounded-lg transition">
+            <button id="fetchUrlBtn" class="bg-green-500 hover:bg-green-600 text-white text-sm font-medium py-1.5 px-4 rounded transition flex-shrink-0">
                 解析
             </button>
-            <div class="w-px h-6 bg-blue-400 hidden md:block"></div>
-            <div id="tabBar" class="flex items-center gap-1">
+            <div class="w-px h-5 bg-blue-400 flex-shrink-0"></div>
+            <div id="tabBar" class="flex items-center gap-1 flex-shrink-0">
                 <button id="tabDual" class="tab-btn active" onclick="switchTab('dual')">双栏</button>
                 <button id="tabTable" class="tab-btn" onclick="switchTab('table')">表格</button>
                 <button id="tabMap" class="tab-btn" onclick="switchTab('map')">地图</button>
             </div>
         </div>
         <!-- 第二行：筛选栏 -->
-        <div id="dayFilterWrap" class="max-w-[1800px] mx-auto px-4 pb-2 flex items-start gap-1.5">
+        <div id="dayFilterWrap" class="max-w-[1800px] mx-auto px-4 pb-2 flex items-start gap-2">
             <div class="flex items-center gap-1.5 flex-shrink-0">
-                <span class="text-xs text-blue-200 whitespace-nowrap">筛选:</span>
-                <button id="selectAllBtn" class="text-xs text-blue-100 hover:text-white underline cursor-pointer whitespace-nowrap">全选</button>
-                <button id="deselectAllBtn" class="text-xs text-blue-100 hover:text-white underline cursor-pointer whitespace-nowrap">全不选</button>
+                <span class="text-sm text-blue-200 whitespace-nowrap">筛选:</span>
+                <button id="selectAllBtn" class="text-sm text-blue-100 hover:text-white underline cursor-pointer whitespace-nowrap">全选</button>
+                <button id="deselectAllBtn" class="text-sm text-blue-100 hover:text-white underline cursor-pointer whitespace-nowrap">全不选</button>
                 <div class="w-px h-4 bg-blue-400"></div>
             </div>
             <div id="dayFilter" class="flex flex-wrap gap-x-1.5 gap-y-1 min-w-0"></div>
@@ -98,10 +134,11 @@
     <main class="flex-1 min-h-0 p-3">
         <div id="contentArea" class="h-full rounded-xl shadow-md overflow-hidden bg-white">
             <div id="dualView" class="flex h-full">
-                <div id="tableWrap" class="w-2/5 overflow-auto border-r border-gray-200">
+                <div id="tableWrap" class="overflow-auto border-r border-gray-200" style="width:40%;flex-shrink:0">
                     <div id="summaryContainer"></div>
                 </div>
-                <div id="mapWrap" class="w-3/5 h-full">
+                <div id="panelResizer" class="panel-resizer"></div>
+                <div id="mapWrap" class="h-full flex-1 min-w-0">
                     <div id="map" style="width:100%; height:100%;"></div>
                 </div>
             </div>
@@ -162,7 +199,7 @@
 
             // 通知地图容器尺寸变化
             setTimeout(() => {
-                if (map) map.invalidateSize();
+                if (map) map.resize();
             }, 100);
         }
 
@@ -233,6 +270,18 @@
             const container = document.getElementById('summaryContainer');
             const containerTab = document.getElementById('summaryContainerTab');
 
+            // Build name → {lat,lng,coord_type} lookup from currentMapData
+            var poiLookup = {};
+            if (currentMapData && currentMapData.days) {
+                currentMapData.days.forEach(day => {
+                    day.events.forEach(ev => {
+                        if (ev.start && ev.start.lat && ev.start.lng) {
+                            poiLookup[ev.name] = ev.start;
+                        }
+                    });
+                });
+            }
+
             if (data.error) {
                 const errorHtml = `
                     <div class="p-6">
@@ -251,8 +300,9 @@
                         <h2 class="text-xl font-bold text-gray-800">📋 ${data.journey_name}</h2>
                         <p class="text-sm text-gray-500 mt-1">共 ${data.total_days} 天 · ${data.total_events} 个事件</p>
                     </div>
-                    <button id="exportBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-5 rounded-lg transition duration-200">
-                        导出 XLSX
+                    <button id="exportBtn" title="导出 Excel 表格" class="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 hover:border-emerald-300 py-1.5 px-3 rounded-lg transition duration-200 cursor-pointer">
+                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        <span>导出</span>
                     </button>
                 </div>
                 <div class="overflow-x-auto">
@@ -260,13 +310,16 @@
                         <thead class="bg-gray-50 border-b-2 border-gray-200">
                             <tr>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-36 border-r border-gray-200">日期/计划</th>
+                                <th class="px-2 py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider w-8">#</th>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">事件内容</th>
                             </tr>
                         </thead>
                         <tbody>`;
             
+                    var rowIdx = 0;
             data.daily_summaries.forEach((day, dayIdx) => {
                 day.events.forEach((event, index) => {
+                    rowIdx++;
                     let displayName = event.name;
                     if (event.note && event.note.trim() !== "") {
                         displayName += ` <span class="text-gray-400">(${event.note})</span>`;
@@ -277,13 +330,21 @@
                         displayName += ` <span class="inline-flex items-center bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded ml-2 font-mono">${event.transport_num} ${startTime}-${endTime}</span>`;
                     }
 
+                    var nameHtml = displayName;
+                    var poi = poiLookup[event.name];
+                    if (poi) {
+                        var clickAction = `flyToPoi(${poi.lat},${poi.lng},'${poi.coord_type || ''}',${dayIdx})`;
+                        nameHtml = `<span class="cursor-pointer hover:text-blue-600 hover:underline" onclick="${clickAction}" title="定位到地图">${displayName}</span>`;
+                    }
+
                     const bgColor = dayIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50';
                     const isDayStart = index === 0;
-                    html += `<tr class="${bgColor} border-b border-gray-100 hover:bg-blue-50/60 transition-colors">
+                    html += `<tr id="${isDayStart ? 'day-row-' + dayIdx : ''}" class="${bgColor} border-b border-gray-100 hover:bg-blue-50/60 transition-colors">
                                 <td class="px-4 py-1.5 text-sm font-medium align-top border-r border-gray-100 ${isDayStart ? 'text-gray-900' : 'text-gray-400'}">
                                     ${isDayStart ? `<span class="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-bold">${day.day_plan_name}</span> <button class="text-xs cursor-pointer text-blue-400 hover:text-blue-700 ml-1" title="定位到 ${day.day_plan_name}" onclick="flyToDay(${dayIdx})">📍</button>` : ''}
                                 </td>
-                                <td class="px-4 py-1.5 text-sm text-gray-700">${displayName}</td>
+                                <td class="px-1 py-1.5 text-sm text-center font-mono text-gray-400 w-8"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-[10px] font-bold text-gray-500">${rowIdx}</span></td>
+                                <td class="px-4 py-1.5 text-sm text-gray-700">${nameHtml}</td>
                              </tr>`;
                 });
             });
@@ -349,12 +410,14 @@
             };
 
             // 添加表头
-            rows.push(["日期/计划", "事件内容"]);
-            styles.push([headerStyle, headerStyle]);
+            rows.push(["日期/计划", "#", "事件内容"]);
+            styles.push([headerStyle, headerStyle, headerStyle]);
             
+            var xlRowIdx = 0;
             currentData.daily_summaries.forEach(day => {
                 const startRow = rows.length;
                 day.events.forEach((event, index) => {
+                    xlRowIdx++;
                     const planName = (index === 0) ? day.day_plan_name : "";
                     let displayName = event.name;
                     if (event.note && event.note.trim() !== "") {
@@ -367,8 +430,8 @@
                         displayName += `  ${event.transport_num}  ${startTime}-${endTime}`;
                         hasTransport = true;
                     }
-                    rows.push([planName, displayName]);
-                    styles.push([dateStyle, hasTransport ? transportStyle : contentStyle]);
+                    rows.push([planName, xlRowIdx, displayName]);
+                    styles.push([dateStyle, { font: { size: 10, name: "微软雅黑", color: { rgb: "6B7280" } }, alignment: { horizontal: "center", vertical: "center" }, border: { bottom: { style: "thin", color: { rgb: "E5E7EB" } } } }, hasTransport ? transportStyle : contentStyle]);
                 });
                 // 合并日期列
                 if (day.events.length > 1) {
@@ -384,6 +447,7 @@
             // 设置列宽
             ws['!cols'] = [
                 { wch: 16 },  // 日期列
+                { wch: 5 },   // # 列
                 { wch: 60 }   // 内容列
             ];
             
@@ -587,7 +651,8 @@
             });
             srcIds.forEach(id => { try { map.removeSource(id); } catch(e){} });
             // 移除旧 DOM markers
-            document.querySelectorAll('.maplibregl-marker').forEach(m => m.remove());
+            _markers.forEach(m => m.remove());
+            _markers = [];
         }
 
         // --- 加载地图数据并绘制 ---
@@ -597,6 +662,8 @@
                 var data = await res.json();
                 if (data.error) return;
                 currentMapData = data;
+                // Re-render table with coordinates now available
+                if (currentData) renderSummaryTable(currentData);
                 await initMap();
                 buildDayFilter();
                 clearMapLayers();
@@ -608,8 +675,9 @@
 
         // --- 渲染地图（带筛选，DOM marker + 路线合并） ---
         var poiIdx = 0;
+        var _markers = [];
 
-        async function renderMap() {
+        async function renderMap(skipFitBounds) {
             if (!map || !currentMapData) return;
             clearMapLayers();
             var filterEl = document.getElementById('dayFilter');
@@ -658,7 +726,7 @@
             });
             await Promise.all(routeModePromises);
 
-            if (allCoords.length > 0) {
+            if (!skipFitBounds && allCoords.length > 0) {
                 var bounds = new maplibregl.LngLatBounds();
                 allCoords.forEach(c => bounds.extend(c));
                 map.fitBounds(bounds, { padding: 40, maxZoom: 12 });
@@ -671,7 +739,7 @@
             var coords = toWGS(poi.lat, poi.lng, poi.coord_type);
             var color = DAY_COLORS[dayIdx % DAY_COLORS.length];
             var el = document.createElement('div');
-            el.style.cssText = `background:${color};color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:pointer;`;
+            el.style.cssText = `background:${color};color:#fff;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);cursor:pointer;line-height:1;`;
             el.textContent = label;
 
             var popupHtml = `<div style="font-size:13px;max-width:220px">`
@@ -679,10 +747,11 @@
                 + (event.transport_num ? `<br><span style="color:#2563eb">${event.transport_num}</span>` : '')
                 + `</div>`;
 
-            new maplibregl.Marker({ element: el })
+            var marker = new maplibregl.Marker({ element: el })
                 .setLngLat(coords)
                 .setPopup(new maplibregl.Popup({ offset: 10 }).setHTML(popupHtml))
                 .addTo(map);
+            _markers.push(marker);
         }
 
         // --- 按交通模式批量合并路线 ---
@@ -736,11 +805,15 @@
 
                 var label = document.createElement('label');
                 label.htmlFor = cb.id;
-                label.className = 'text-xs cursor-pointer whitespace-nowrap';
+                label.className = 'day-label text-xs cursor-pointer whitespace-nowrap';
                 label.style.cssText = 'color:#E0E7FF;';
                 label.textContent = day.day_plan_name.split(' ')[0];
                 label.onmouseenter = () => label.style.color = '#fff';
                 label.onmouseleave = () => label.style.color = '#E0E7FF';
+                label.onclick = (e) => {
+                    e.preventDefault();
+                    flyToDay(i);
+                };
 
                 // 点击日期标签 → 跳转到该天的POI
                 var jumpBtn = document.createElement('button');
@@ -775,11 +848,11 @@
         // --- 跳转到指定天的POI ---
         function flyToDay(dayIdx) {
             if (!map || !currentMapData) return;
-            // 确保该天已勾选
+            var needRender = false;
             var cb = document.getElementById('daycb-' + dayIdx);
             if (cb && !cb.checked) {
                 cb.checked = true;
-                renderMap();
+                needRender = true;
             }
             var day = currentMapData.days[dayIdx];
             if (!day) return;
@@ -791,13 +864,86 @@
             });
             if (coords.length === 0) return;
             if (coords.length === 1) {
-                map.flyTo({ center: coords[0], zoom: 14 });
+                map.flyTo({ center: coords[0], zoom: 14, essential: true });
             } else {
                 var bounds = new maplibregl.LngLatBounds();
                 coords.forEach(c => bounds.extend(c));
                 map.fitBounds(bounds, { padding: 60, maxZoom: 15 });
             }
+            if (needRender) renderMap(true); // fly 已经启动，异步补渲染，不 fitBounds
+            // 滚动表格到该天
+            scrollToDay(dayIdx);
         }
+
+        function flyToPoi(lat, lng, coordType, dayIdx) {
+            if (!map) return;
+            var needRender = false;
+            if (dayIdx !== undefined) {
+                var cb = document.getElementById('daycb-' + dayIdx);
+                if (cb && !cb.checked) {
+                    cb.checked = true;
+                    needRender = true;
+                }
+            }
+            var coords = toWGS(lat, lng, coordType);
+            map.flyTo({ center: coords, zoom: 15, essential: true });
+            if (needRender) renderMap(true); // fly 已经启动，异步补渲染，不 fitBounds
+        }
+
+        // --- 滚动表格到指定天 ---
+        function scrollToDay(dayIdx) {
+            var id = 'day-row-' + dayIdx;
+            var target = null;
+            if (currentTab === 'table') {
+                target = document.getElementById('summaryContainerTab').querySelector('#' + id);
+            } else {
+                target = document.getElementById(id);
+            }
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        // ========== 面板拖动分隔条 ==========
+        (function initResizer() {
+            var resizer = document.getElementById('panelResizer');
+            var tableWrap = document.getElementById('tableWrap');
+            var dualView = document.getElementById('dualView');
+            var isDragging = false;
+
+            function onPointerDown(e) {
+                isDragging = true;
+                resizer.classList.add('active');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+                // 阻止地图接收事件
+                document.getElementById('mapWrap').style.pointerEvents = 'none';
+                e.preventDefault();
+            }
+
+            function onPointerMove(e) {
+                if (!isDragging) return;
+                var rect = dualView.getBoundingClientRect();
+                var x = e.clientX - rect.left;
+                var pct = (x / rect.width) * 100;
+                pct = Math.max(20, Math.min(80, pct)); // 限制 20%~80%
+                tableWrap.style.width = pct + '%';
+            }
+
+            function onPointerUp() {
+                if (!isDragging) return;
+                isDragging = false;
+                resizer.classList.remove('active');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                document.getElementById('mapWrap').style.pointerEvents = '';
+                if (map) map.resize();
+            }
+
+            resizer.addEventListener('pointerdown', onPointerDown);
+            document.addEventListener('pointermove', onPointerMove);
+            document.addEventListener('pointerup', onPointerUp);
+        })();
 
         // ========== 入口：加载行程后同时加载地图 ==========
         var _lastLoadedJourneyId = null;

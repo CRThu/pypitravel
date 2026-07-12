@@ -129,6 +129,18 @@ def check_port(port: int) -> bool:
         except OSError:
             return False
 
+def find_free_port() -> int:
+    """随机一个可用的高位端口 (49152-65535)"""
+    import random
+    for _ in range(50):
+        port = random.randint(49152, 65535)
+        if check_port(port):
+            return port
+    # fallback: 让 OS 分配
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
 def wait_for_server(host: str, port: int, timeout: float = 5.0):
     """轮询端口直到服务就绪"""
     import time
@@ -150,23 +162,34 @@ def open_browser_when_ready(host: str, port: int):
 
 def main():
     parser = argparse.ArgumentParser(description="圆周旅迹行程规划导出与可视化工具")
-    parser.add_argument("-p", "--port", type=int, default=8000, help="端口号 (默认: 8000)")
+    parser.add_argument("-p", "--port", type=int, default=None, help="端口号 (默认: 8000, GUI 模式随机高位端口)")
     parser.add_argument("--cache-dir", type=str, default=None, help="缓存目录路径 (默认: ~/.pypitravel/cache)")
     parser.add_argument("--no-browser", action="store_true", help="不自动打开浏览器")
+    parser.add_argument("--gui", action="store_true", help="使用桌面窗口启动 (需安装 pywebview)")
     args = parser.parse_args()
 
     if args.cache_dir:
         paths.set_cache_dir(args.cache_dir)
 
-    if not check_port(args.port):
-        print(f"❌ 端口 {args.port} 已被占用，请使用 -p 指定其他端口")
+    # GUI 模式默认随机高位端口，浏览器模式默认 8000
+    port = args.port if args.port is not None else (find_free_port() if args.gui else 8000)
+
+    if not check_port(port):
+        print(f"❌ 端口 {port} 已被占用，请使用 -p 指定其他端口")
         sys.exit(1)
 
-    url = f"http://127.0.0.1:{args.port}"
+    host = "127.0.0.1"
+    url = f"http://{host}:{port}"
     print(f"🚀 服务启动于 {url}")
-    if not args.no_browser:
-        open_browser_when_ready("127.0.0.1", args.port)
-    uvicorn.run(app, host="127.0.0.1", port=args.port)
+
+    if args.gui:
+        from .gui import launch_gui
+        threading.Thread(target=uvicorn.run, args=(app,), kwargs={"host": host, "port": port}, daemon=True).start()
+        launch_gui(host, port)
+    else:
+        if not args.no_browser:
+            open_browser_when_ready(host, port)
+        uvicorn.run(app, host=host, port=port)
 
 if __name__ == "__main__":
     main()

@@ -126,7 +126,8 @@
 *   [x] 实现本地缓存管理 (`~/.pypitravel/cache/`) 与路径模块化 (`paths.py`)。
 *   [x] 实现业务解析模块 (`journey_parser.py`)。
 *   [x] 优化数据处理逻辑（已实现 XLSX 导出、交通信息平铺解析）。
-*   [x] 实现自动寻端口与浏览器唤起（`find_available_port` + `wait_for_server` + `webbrowser.open`）。
+*   [x] 实现自动寻端口与浏览器唤起（`check_port` + `wait_for_server` + `webbrowser.open`）。
+*   [x] 实现 WebView2 桌面窗口启动模式 (`gui.py` + `--gui` 参数)。
 *   [ ] 实现圆周旅迹数据深度分析。
 
 ### 2. 前端 (交互式地图)
@@ -137,12 +138,16 @@
 *   [x] 集成 MapLibre GL JS，完成路径可视化开发。
 
 ### 3. 打包与发布
-*   [ ] 配置 `Nuitka` 打包脚本，确保包含所有依赖、静态文件（`static/`）并优化体积。
+*   [x] 配置 GitHub Actions 自动发布到 PyPI（推送 `v*` tag 触发）。
+*   [ ] 配置 Nuitka 打包脚本，确保包含所有依赖、静态文件（`static/`）并优化体积。
 *   [ ] 测试全流程构建，验证最终 `.exe` 的可执行性。
 
 ---
 
 ## 开发约定与操作指南
+
+### 工具脚本
+*   `tools/list_cache.py` — 缓存解析工具，用于查看和解析本地缓存的行程数据。
 
 ### 操作原则
 *   **严禁自动提交**: 本项目的所有操作（如文件修改、版本更新等）均**严禁在未经用户明确同意的情况下执行自动 commit/push 操作**。Agent 必须在完成文件变更后停下来等待用户确认。

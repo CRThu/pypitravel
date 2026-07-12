@@ -16,22 +16,70 @@ PyPitravel 是一个用于解析旅行规划平台《圆周旅迹》数据、提
 *   **本地部署**: 提供轻量级的本地 Web 服务。
 *   **可视化分析**: 支持交互式地图轨迹绘制，区分飞机/火车/驾车/步行路线，支持日期筛选。
 *   **数据导出**: 支持将行程规划数据导出为 **XLSX** 格式，方便在 Excel 中进行编辑与打印。
-*   **便携运行**: 基于 Nuitka 打包，用户无需安装 Python 环境即可使用。
+*   **双模式启动**: 支持浏览器模式和 WebView2 桌面窗口模式。
 
 ## 快速上手
 
 ### 安装
-使用 pip 安装：
+
+**浏览器模式**（默认）：
 ```bash
 pip install pypitravel
 ```
 
+**桌面窗口模式**（WebView2）：
+```bash
+pip install pypitravel[gui]
+```
+> 桌面窗口模式依赖 WebView2 运行时，Windows 10 20H2+ 和 Windows 11 已预装。如未安装，请参考 [Microsoft WebView2 下载](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)。
+
 ### 启动
-安装完成后，在终端直接运行：
+
+#### 浏览器模式
 ```bash
 pypitravel
 ```
 程序会自动寻找可用端口（默认 8000）并唤起浏览器，无需手动输入地址。
+
+#### 桌面窗口模式
+```bash
+pypitravel --gui
+```
+程序会在 WebView2 桌面窗口中启动，无需浏览器，体验接近原生应用。
+
+### 快速执行 (无需安装)
+如果你安装了 `uv`，可以使用 `uvx` 直接运行，无需手动安装：
+```bash
+# 浏览器模式
+uvx pypitravel
+
+# 桌面窗口模式
+uvx --from 'pypitravel[gui]' pypitravel --gui
+```
+
+### 命令行参数
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `-p, --port` | 服务端口号 | 8000 |
+| `--cache-dir` | 自定义缓存目录路径 | `~/.pypitravel/cache/` |
+| `--gui` | 使用 WebView2 桌面窗口启动 | - |
+| `--no-browser` | 启动时不自动打开浏览器 | - |
+
+示例：
+```bash
+# 使用 9000 端口
+pypitravel -p 9000
+
+# 使用自定义缓存目录
+pypitravel --cache-dir /path/to/cache
+
+# 桌面窗口模式
+pypitravel --gui
+
+# 桌面窗口模式 + 自定义端口
+pypitravel --gui -p 9000
+```
 
 ### 快速执行 (无需安装)
 如果你安装了 `uv`，可以使用 `uvx` 直接运行，无需手动安装：
@@ -53,9 +101,6 @@ uvx pypitravel
 
 ## 应用预览
 
-### 行程详情
-![行程详情](img/demo-table.png)
-
 ### 路线地图
 ![路线地图](img/demo-map.png)
 
@@ -63,7 +108,7 @@ uvx pypitravel
 *   **后端**: FastAPI, httpx
 *   **前端**: HTML, JavaScript, Tailwind CSS, SheetJS, MapLibre GL JS
 *   **地图**: MapLibre GL JS + OpenFreeMap + OSRM 路由
-*   **打包**: Nuitka
+*   **桌面窗口**: pywebview + WebView2 (可选)
 *   **依赖管理**: uv
 
 ## 许可证
