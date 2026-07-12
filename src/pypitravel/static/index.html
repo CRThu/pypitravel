@@ -350,6 +350,7 @@
             driving: { color: '#F59E0B', width: 3, dasharray: null },
             walking: { color: '#9CA3AF', width: 1.5, dasharray: [4, 3] },
             transfer:{ color: '#8B5CF6', width: 2, dasharray: [6, 3] },
+            car:     { color: '#F59E0B', width: 3, dasharray: null },
         };
 
         // --- eviltransform: GCJ-02 → WGS-84 ---
@@ -482,15 +483,14 @@
             if (!eA.start || !eB.start) return;
             var from = toWGS(eA.start.lat, eA.start.lng, eA.start.coord_type);
             var to = toWGS(eB.start.lat, eB.start.lng, eB.start.coord_type);
-            var style = ROUTE_STYLES[mode] || ROUTE_STYLES.walking;
+            var style = ROUTE_STYLES[mode] || ROUTE_STYLES.driving;
             var coords;
 
             if (mode === 'flight') {
                 coords = greatCircleArc(from, to);
-            } else if (mode === 'driving' || mode === 'train') {
-                coords = await fetchOSRM(from, to);
             } else {
-                coords = [from, to];
+                // 非飞行统一走 OSRM 汽车路由（尚未接入火车/步行专用 API）
+                coords = await fetchOSRM(from, to);
             }
 
             var srcId = 'route-' + dayIdx + '-' + routeIdx;
