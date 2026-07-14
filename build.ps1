@@ -1,10 +1,10 @@
-uv sync --extra gui
-uv pip install pefile
+uv sync --extra gui --group dev
 uv run nuitka src/pypitravel/ `
     --onefile `
     --output-dir=build `
     --python-flag=-m `
     --no-deployment-flag=excluded-module-usage `
+    --experimental=force-dependencies-pefile `
     --include-data-dir=src/pypitravel/static=pypitravel/static `
     --include-package=fastapi `
     --include-package=uvicorn `

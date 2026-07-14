@@ -27,6 +27,7 @@ packages = ["src/pypitravel"]
 dev = [
     "bump-my-version>=1.3.0",
     "nuitka",
+    "pefile",
 ]
 
 [tool.bumpversion]
