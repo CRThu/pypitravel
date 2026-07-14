@@ -49,4 +49,4 @@ jobs:
       - name: Upload exe to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: build/pypitravel.dist/pypitravel.exe
+          files: build/pypitravel.exe
