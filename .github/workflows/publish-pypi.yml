@@ -39,6 +39,9 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Install Visual Studio Build Tools
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Install dependencies
         run: |
           uv sync --extra gui
