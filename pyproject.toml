@@ -1,6 +1,6 @@
 [project]
 name = "pypitravel"
-version = "1.1.5"
+version = "1.1.6"
 description = "圆周旅迹行程规划导出与可视化工具"
 readme = "README.md"
 dependencies = [
@@ -30,7 +30,7 @@ dev = [
 ]
 
 [tool.bumpversion]
-current_version = "1.1.5"
+current_version = "1.1.6"
 commit = true
 tag = true
 allow_dirty = true
