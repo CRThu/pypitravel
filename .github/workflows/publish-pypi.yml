@@ -40,7 +40,9 @@ jobs:
           python-version: '3.13'
 
       - name: Install dependencies
-        run: uv sync --extra gui
+        run: |
+          uv sync --extra gui
+          uv pip install pefile
 
       - name: Build exe with Nuitka
         run: uv run nuitka src/pypitravel/ --onefile --output-dir=build --python-flag=-m --no-deployment-flag=excluded-module-usage --include-data-dir=src/pypitravel/static=pypitravel/static --include-package=fastapi --include-package=uvicorn --include-package=httpx --include-package=webview --disable-plugins=pywebview --nofollow-import-to=webview.platforms.android --nofollow-import-to=webview.platforms.cocoa --nofollow-import-to=webview.platforms.gtk --nofollow-import-to=webview.platforms.qt --nofollow-import-to=webview.platforms.cef

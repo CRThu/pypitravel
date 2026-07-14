@@ -1,4 +1,5 @@
 uv sync --extra gui
+uv pip install pefile
 uv run nuitka src/pypitravel/ `
     --onefile `
     --output-dir=build `
